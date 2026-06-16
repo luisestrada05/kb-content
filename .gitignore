@@ -9,3 +9,6 @@ node_modules
 .vscode
 .idea
 *.log
+
+# Local-only test seeds (no se publican)
+rules/**/*-extras.yaml

@@ -1,0 +1,48 @@
+metadata:
+  domain: diferidos
+  version: "1.0.0"
+  created_at: "2026-06-16"
+
+rules:
+  - id: R-DIF-001
+    type: rule
+    subdomain: alta
+    summary: "Toda alta de diferido requiere una validación previa exitosa"
+    applicability:
+      evento: [alta_diferido, diferir_compra]
+      actor: [SISTEMA, BATCH]
+    formal_rule:
+      conditions:
+        - field: validacion_previa
+          op: eq
+          value: true
+      action: "Aceptar el alta del diferido y persistir en DIF + LIN"
+    source_ref: "confluence://diferidos/alta §3.2"
+    owner: "equipo-diferidos"
+    status: active
+    risk_note: "Si se omite la validación previa, pueden persistirse diferidos con datos inconsistentes y romper el ciclo de cobro nocturno."
+    related_objects:
+      tables: [DIF, LIN]
+      sps: [DIVVAL, LINALT]
+
+  - id: E-DIF-001
+    type: exception
+    subdomain: alta
+    summary: "Comercios pre-aprobados omiten la validación previa"
+    applicability:
+      evento: [alta_diferido]
+      actor: [SISTEMA]
+    formal_rule:
+      conditions:
+        - field: comercio.pre_aprobado
+          op: eq
+          value: true
+      action: "Saltar la validación previa y dar de alta directamente"
+      overrides: R-DIF-001
+    source_ref: "confluence://diferidos/alta §3.2.1"
+    owner: "equipo-diferidos"
+    status: active
+    risk_note: "El comercio asume la responsabilidad de pre-validación; si su lista de pre-aprobados queda desincronizada, se cuelan diferidos no validados."
+    related_objects:
+      tables: [DIF]
+      sps: [DIVVAL]

@@ -1,0 +1,48 @@
+name: Validate rules
+
+# Runs on every PR that touches rules/ or plugin/ — the only gate that
+# guarantees malformed YAML never reaches main.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'rules/**'
+      - 'plugin/**'
+      - 'scripts/validate-all.mjs'
+      - 'package*.json'
+      - '.github/workflows/validate.yml'
+  push:
+    branches: [main]
+
+concurrency:
+  group: validate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      # @kb/mcp-server is a git dep with native better-sqlite3 — cache its
+      # build output so we don't recompile on every PR.
+      - name: Cache native deps
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules/better-sqlite3/build
+          key: native-${{ runner.os }}-${{ hashFiles('package-lock.json', 'package.json') }}
+          restore-keys: native-${{ runner.os }}-
+
+      - run: npm install --no-audit --no-fund
+
+      - name: Validate every rule file
+        run: npm run validate

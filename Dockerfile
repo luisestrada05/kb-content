@@ -48,5 +48,12 @@ FROM busybox:1.36-musl
 
 COPY --from=builder /work/kb.db /kb.db
 
+# After copying, chown the file AND the directory to uid 1000 — that's
+# the `node` user in the downstream node:22-slim image. Without this the
+# server container (running as `node`) cannot create SQLite's WAL/journal
+# next to the .db and fails on startup with SQLITE_READONLY_DIRECTORY.
+# We use a numeric uid because busybox has no /etc/passwd entry for
+# `node`; the value matches Docker Hub's node:22-slim convention.
+#
 # Override at runtime if needed: `command: ["sh","-c","cp /kb.db /other/path"]`
-CMD ["sh", "-c", "mkdir -p /out && cp /kb.db /out/kb.db && echo '[kb-content] kb.db copied to /out/kb.db'"]
+CMD ["sh", "-c", "mkdir -p /out && cp /kb.db /out/kb.db && chown -R 1000:1000 /out && echo '[kb-content] kb.db published to /out (owner 1000:1000)'"]

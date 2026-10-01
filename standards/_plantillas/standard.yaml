@@ -1,0 +1,21 @@
+# Plantilla — copia a standards/<tecnologia>/<tema>.yaml
+metadata:
+  technology: sybase          # OBLIGATORIO — una tecnología por carpeta (sybase, java, angular...)
+  version: "0.1.0"
+  created_at: "YYYY-MM-DD"
+
+standards:
+  - id: STD-SYB-001           # OBLIGATORIO — STD-<TEC>-NNN
+    category: error_handling  # naming | error_handling | security | performance | structure | testing | otro
+    summary: "Qué exige el estándar, en una línea"
+    level: must               # must (bloquea review) | should (recomendado) | may (opcional)
+    applies_to:               # a qué aplica: tipos de objeto o globs
+      - stored_procedure
+    rationale: "Por qué existe. Si no se sabe, dilo: 'heredado, sin documentar'"
+    good_example: |
+      -- código que cumple
+    bad_example: |
+      -- código que NO cumple
+    decision: DEC-XXX-NNN     # opcional — nota del vault con el porqué completo
+    owner: "equipo-x"
+    status: active            # active | draft | deprecated

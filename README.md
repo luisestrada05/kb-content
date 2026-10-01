@@ -112,6 +112,12 @@ Al ingestar, la intención y los "no significa" se embeben en la regla, así `kb
 | `accepted` | Validado (`validado_con` lleno) |
 | `superseded` | Reemplazada; requiere `superseded_by` |
 
+## Estándares técnicos
+
+Separados de las reglas de negocio: una regla dice qué debe pasar en el dominio; un estándar dice cómo se escribe el código en una tecnología. Viven en `standards/<tecnologia>/<tema>.yaml` con la forma de [standards/_plantillas/standard.yaml](standards/_plantillas/standard.yaml) e IDs `STD-<TEC>-NNN`. Se ingestan como entidades `standard` con la tecnología y la categoría como términos (`kb_by_term sybase`).
+
+Para capturarlos, usa el prompt de Copilot [.github/prompts/capturar-estandares.prompt.md](.github/prompts/capturar-estandares.prompt.md): pregunta la tecnología, te pide las fuentes en tu máquina, propone la lista antes de escribir y corre la validación. Si nadie sabe el porqué de un estándar, `rationale: "heredado, sin documentar"`; nunca uno inventado.
+
 ## Comandos locales
 
 ```bash

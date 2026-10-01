@@ -3,27 +3,30 @@
  *
  * Lee todos los YAML de reglas de negocio en un directorio (recursivo)
  * y los carga como entidades + aristas + terms en la KB. También carga las
- * notas de decisión del vault y embebe su porqué en cada regla que las cita.
+ * notas de decisión del vault y embebe su porqué en cada regla que las cita,
+ * y los estándares técnicos por tecnología (standards/<tecnologia>/*.yaml).
  *
  * Adaptado del template publicado en
  *   github.com/luisestrada05/mcp-kb-server :: examples/yaml-rules/ingest.mjs
  *
  * Taxonomía:
- *   Entity types: rule | exception | gap | sla | decision
+ *   Entity types: rule | exception | gap | sla | decision | standard
  *   Relations:    overrides | uses_table | uses_sp | justified_by
  *
  * Uso (local):
- *   kb-ingest ingest --db ./kb.db --plugin ./plugin/ingest.mjs --opt root=./rules --opt vault=./vault
+ *   kb-ingest ingest --db ./kb.db --plugin ./plugin/ingest.mjs --opt root=./rules --opt vault=./vault --opt standards=./standards
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import yaml from 'js-yaml'
 import { loadDecisions } from './decisions.mjs'
+import { loadStandards } from './standards.mjs'
 
 // ── Config ──────────────────────────────────────────────────────────────────
 const DEFAULT_RULES_DIR = join(fileURLToPath(import.meta.url), '..', '..', 'rules')
 const DEFAULT_VAULT_DIR = join(fileURLToPath(import.meta.url), '..', '..', 'vault')
+const DEFAULT_STANDARDS_DIR = join(fileURLToPath(import.meta.url), '..', '..', 'standards')
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 function findYamlFiles(dir) {
@@ -104,6 +107,56 @@ function ingestDecisions(ctx, decisions) {
   }
 }
 
+function ingestStandards(ctx, standardFiles, decisions) {
+  let count = 0
+  let edges = 0
+  for (const { file, technology, version, standards } of standardFiles) {
+    for (const std of standards) {
+      if (!std.id) continue
+      const entityId = `standard:${std.id}`
+      const decision = std.decision ? decisions.get(std.decision) : null
+      const parts = [std.summary || '', `Nivel: ${std.level}`]
+      if (std.rationale) parts.push(`Por qué: ${std.rationale}`)
+      if (std.good_example) parts.push(`Cumple:\n${std.good_example.trim()}`)
+      if (std.bad_example) parts.push(`No cumple:\n${std.bad_example.trim()}`)
+
+      ctx.entities.upsert({
+        id: entityId,
+        type: 'standard',
+        name: `[${std.id}] ${std.summary || 'Sin resumen'}`,
+        body: parts.join('\n'),
+        metadata: {
+          technology,
+          technologyVersion: version,
+          category: std.category || null,
+          level: std.level || null,
+          appliesTo: std.applies_to || [],
+          status: std.status || 'active',
+          owner: std.owner || null,
+          rationale: std.rationale || null,
+          decision: decision ? decisionSummary(decision) : null,
+        },
+        sourcePath: file,
+      })
+      count++
+
+      ctx.search.clearTerms(entityId)
+      ctx.search.addTerms(
+        entityId,
+        [technology, std.category, std.id.toLowerCase(), 'estandar', ...(std.applies_to || [])]
+          .filter(Boolean)
+          .map((t) => String(t).toLowerCase())
+      )
+
+      if (decision) {
+        ctx.edges.upsert({ src: entityId, dst: `decision:${std.decision}`, relation: 'justified_by' })
+        edges++
+      }
+    }
+  }
+  return { count, edges }
+}
+
 function extractTerms(rule, domain) {
   const terms = new Set()
   terms.add(domain)
@@ -141,8 +194,11 @@ export default {
     const decisions = loadDecisions(join(vaultDir, 'decisiones'))
     ingestDecisions(ctx, decisions)
 
+    const standardsDir = ctx.options?.standards ? String(ctx.options.standards) : DEFAULT_STANDARDS_DIR
+    const standardsResult = ingestStandards(ctx, loadStandards(standardsDir), decisions)
+
     let totalRules = 0
-    let totalEdges = 0
+    let totalEdges = standardsResult.edges
 
     for (const file of files) {
       const raw = readFileSync(file, 'utf-8')
@@ -244,7 +300,7 @@ export default {
     }
 
     process.stderr.write(
-      `[kb-content] ingested ${totalRules} rules, ${decisions.size} decisions, ${totalEdges} edges from ${files.length} files\n`
+      `[kb-content] ingested ${totalRules} rules, ${decisions.size} decisions, ${standardsResult.count} standards, ${totalEdges} edges from ${files.length} files\n`
     )
   },
 }

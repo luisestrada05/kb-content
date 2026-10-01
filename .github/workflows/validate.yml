@@ -8,6 +8,7 @@ on:
     paths:
       - 'rules/**'
       - 'vault/**'
+      - 'standards/**'
       - 'plugin/**'
       - 'scripts/validate-all.mjs'
       - 'package*.json'

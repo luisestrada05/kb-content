@@ -15,6 +15,7 @@ on:
       - 'plugin/**'
       - 'rules/**'
       - 'vault/**'
+      - 'standards/**'
       - 'package*.json'
       - '.github/workflows/build-data.yml'
 

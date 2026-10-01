@@ -2,25 +2,28 @@
  * Ingestion plugin — kb-content
  *
  * Lee todos los YAML de reglas de negocio en un directorio (recursivo)
- * y los carga como entidades + aristas + terms en la KB.
+ * y los carga como entidades + aristas + terms en la KB. También carga las
+ * notas de decisión del vault y embebe su porqué en cada regla que las cita.
  *
  * Adaptado del template publicado en
  *   github.com/luisestrada05/mcp-kb-server :: examples/yaml-rules/ingest.mjs
  *
  * Taxonomía:
- *   Entity types: rule | exception | gap | sla
- *   Relations:    overrides | uses_table | uses_sp
+ *   Entity types: rule | exception | gap | sla | decision
+ *   Relations:    overrides | uses_table | uses_sp | justified_by
  *
  * Uso (local):
- *   kb-ingest ingest --db ./kb.db --plugin ./plugin/ingest.mjs --opt root=./rules
+ *   kb-ingest ingest --db ./kb.db --plugin ./plugin/ingest.mjs --opt root=./rules --opt vault=./vault
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import yaml from 'js-yaml'
+import { loadDecisions } from './decisions.mjs'
 
 // ── Config ──────────────────────────────────────────────────────────────────
 const DEFAULT_RULES_DIR = join(fileURLToPath(import.meta.url), '..', '..', 'rules')
+const DEFAULT_VAULT_DIR = join(fileURLToPath(import.meta.url), '..', '..', 'vault')
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 function findYamlFiles(dir) {
@@ -43,8 +46,12 @@ function findYamlFiles(dir) {
   return results
 }
 
-function buildBody(rule) {
+function buildBody(rule, decision) {
   const parts = [rule.summary || '']
+  if (decision?.sections.intencion) parts.push(`Por qué: ${decision.sections.intencion.text}`)
+  for (const item of decision?.sections.noSignifica?.items || []) {
+    parts.push(`No significa: ${item}`)
+  }
   if (rule.risk_note) parts.push(`Riesgo: ${rule.risk_note}`)
   if (rule.formal_rule?.action) parts.push(`Acción: ${rule.formal_rule.action}`)
   if (rule.formal_rule?.conditions) {
@@ -53,7 +60,48 @@ function buildBody(rule) {
     }
   }
   if (rule.source_ref) parts.push(`Fuente: ${rule.source_ref}`)
+  if (decision) parts.push(`Decisión: ${decision.frontmatter.id} (${decision.frontmatter.status})`)
   return parts.join('\n')
+}
+
+// Lo que viaja dentro de la regla: suficiente para no malinterpretarla sin
+// tener que ir a buscar la nota completa.
+function decisionSummary(d) {
+  return {
+    id: d.frontmatter.id,
+    status: d.frontmatter.status || null,
+    validadoCon: d.frontmatter.validado_con || null,
+    intencion: d.sections.intencion?.text || null,
+    noSignifica: d.sections.noSignifica?.items || [],
+  }
+}
+
+function ingestDecisions(ctx, decisions) {
+  for (const d of decisions.values()) {
+    const fm = d.frontmatter
+    const entityId = `decision:${fm.id}`
+    ctx.entities.upsert({
+      id: entityId,
+      type: 'decision',
+      name: d.title.startsWith(`${fm.id}`) ? d.title : `[${fm.id}] ${d.title}`,
+      body: d.content,
+      metadata: {
+        domain: fm.domain || null,
+        status: fm.status || null,
+        owner: fm.owner || null,
+        validadoCon: fm.validado_con || null,
+        fecha: fm.fecha ? String(fm.fecha) : null,
+        origen: fm.origen || [],
+        supersededBy: fm.superseded_by || null,
+        sections: Object.fromEntries(
+          Object.entries(d.sections).map(([k, v]) => [k, v.items.length ? v.items : v.text])
+        ),
+      },
+      sourcePath: d.file,
+    })
+    ctx.search.clearTerms(entityId)
+    ctx.search.addTerms(entityId, [fm.id.toLowerCase(), fm.domain, 'decision'].filter(Boolean))
+  }
 }
 
 function extractTerms(rule, domain) {
@@ -88,7 +136,10 @@ export default {
     if (!ctx.options?.root) {
       process.stderr.write('[kb-content] WARN: no --opt root=<dir> provided, using default\n')
     }
+    const vaultDir = ctx.options?.vault ? String(ctx.options.vault) : DEFAULT_VAULT_DIR
     const files = findYamlFiles(rootDir)
+    const decisions = loadDecisions(join(vaultDir, 'decisiones'))
+    ingestDecisions(ctx, decisions)
 
     let totalRules = 0
     let totalEdges = 0
@@ -118,7 +169,11 @@ export default {
         if (!rule.id) continue
 
         const entityId = `${rule.type || 'rule'}:${rule.id}`
-        const body = buildBody(rule)
+        const decision = rule.decision ? decisions.get(rule.decision) : null
+        if (rule.decision && !decision) {
+          process.stderr.write(`[kb-content] WARN: ${rule.id} cita ${rule.decision} pero no existe en el vault\n`)
+        }
+        const body = buildBody(rule, decision)
 
         ctx.entities.upsert({
           id: entityId,
@@ -139,6 +194,7 @@ export default {
             relatedSps: rule.related_objects?.sps || [],
             sourceRef: rule.source_ref || null,
             formalRule: rule.formal_rule || null,
+            decision: decision ? decisionSummary(decision) : null,
           },
           sourcePath: file,
         })
@@ -151,6 +207,11 @@ export default {
         if (rule.type === 'exception' && rule.formal_rule?.overrides) {
           const targetId = `rule:${rule.formal_rule.overrides}`
           ctx.edges.upsert({ src: entityId, dst: targetId, relation: 'overrides' })
+          totalEdges++
+        }
+
+        if (decision) {
+          ctx.edges.upsert({ src: entityId, dst: `decision:${rule.decision}`, relation: 'justified_by' })
           totalEdges++
         }
 
@@ -183,7 +244,7 @@ export default {
     }
 
     process.stderr.write(
-      `[kb-content] ingested ${totalRules} rules, ${totalEdges} edges from ${files.length} files\n`
+      `[kb-content] ingested ${totalRules} rules, ${decisions.size} decisions, ${totalEdges} edges from ${files.length} files\n`
     )
   },
 }

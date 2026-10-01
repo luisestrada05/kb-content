@@ -96,6 +96,22 @@ rules:
 | `risk_note` presente | Toda regla debe documentar su contraparte (qué se rompe si no se cumple) |
 | `related_objects.tables` y `.sps` referencian objetos existentes en la KB | Si una tabla / SP es nuevo, el validador lo registra como `status: new` (auto-register en CI) |
 
+## Decisiones (el porqué de las reglas)
+
+La regla YAML dice **qué**; la nota de decisión dice **por qué** y, sobre todo, qué **no** significa. Viven en `vault/decisiones/` como markdown compatible con Obsidian (se puede editar sin la app).
+
+1. Copia [vault/_plantillas/decision.md](vault/_plantillas/decision.md) a `vault/decisiones/DEC-XXX-NNN.md`.
+2. Llena al menos `## Intención` y `## No significa` (obligatorias). Lo que no sepas márcalo con `⚠️ POR COMPLETAR`: el validador avisa pero no falla.
+3. En la regla agrega `decision: DEC-XXX-NNN`. Varias reglas pueden citar la misma decisión.
+
+Al ingestar, la intención y los "no significa" se embeben en la regla, así `kb_get rule:...` devuelve regla + porqué juntos, y se crea la arista `rule → justified_by → decision`.
+
+| `status` | Significado |
+|---|---|
+| `proposed` | Borrador, aún no validado con negocio |
+| `accepted` | Validado (`validado_con` lleno) |
+| `superseded` | Reemplazada; requiere `superseded_by` |
+
 ## Comandos locales
 
 ```bash

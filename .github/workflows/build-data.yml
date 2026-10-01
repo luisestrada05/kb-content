@@ -14,6 +14,7 @@ on:
       - '.dockerignore'
       - 'plugin/**'
       - 'rules/**'
+      - 'vault/**'
       - 'package*.json'
       - '.github/workflows/build-data.yml'
 

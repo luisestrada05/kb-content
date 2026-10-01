@@ -25,8 +25,8 @@ export function decisionSummary(note) {
   return {
     id: note.id,
     status: note.frontmatter.status || null,
-    validadoCon: note.frontmatter.validado_con || null,
-    intencion: pickSection(note, 'intencion')?.text || null,
+    why: pickSection(note, 'intencion')?.text || null,
     noSignifica: pickSection(note, 'no significa')?.items || [],
+    validatedBy: note.frontmatter.validado_con || null,
   }
 }

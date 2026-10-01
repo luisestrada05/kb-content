@@ -17,6 +17,7 @@ on:
       - 'vault/**'
       - 'standards/**'
       - 'lessons/**'
+      - 'mcp-instructions.md'
       - 'package*.json'
       - '.github/workflows/build-data.yml'
 

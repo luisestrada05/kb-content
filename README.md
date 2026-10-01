@@ -118,6 +118,20 @@ Separados de las reglas de negocio: una regla dice qué debe pasar en el dominio
 
 Para capturarlos, usa el prompt de Copilot [.github/prompts/capturar-estandares.prompt.md](.github/prompts/capturar-estandares.prompt.md): pregunta la tecnología, te pide las fuentes en tu máquina, propone la lista antes de escribir y corre la validación. Si nadie sabe el porqué de un estándar, `rationale: "heredado, sin documentar"`; nunca uno inventado.
 
+## Instrucciones para el agente (MCP)
+
+[`mcp-instructions.md`](mcp-instructions.md) le dice al agente **cuándo** consultar la KB: antes de tocar lógica de negocio, buscar por SP o tabla, respetar los "No significa" y avisar de lecciones sin guarda completa. El servidor lo manda como `instructions` del protocolo MCP (`KB_INSTRUCTIONS_FILE`), así que no hay que copiarlo a cada repo de código.
+
+La imagen de datos lo publica junto a `kb.db` en el volumen compartido. En el servicio `kb-mcp` del compose:
+
+```yaml
+environment:
+  KB_DB_PATH: /data/kb.db
+  KB_INSTRUCTIONS_FILE: /data/mcp-instructions.md
+```
+
+Si el cliente no muestra las instrucciones del servidor, pega el mismo texto en el `.github/copilot-instructions.md` del repo de código.
+
 ## Comandos locales
 
 ```bash

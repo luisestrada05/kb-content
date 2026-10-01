@@ -1,0 +1,23 @@
+# Plantilla — copia a lessons/<area>/<tema>.yaml
+# Una lección = algo que YA salió mal. Si no hay evidencia (ticket, tarea, PR, incidente), no es lección.
+metadata:
+  area: diferidos               # OBLIGATORIO — dominio o área (diferidos, ops, qa...)
+
+lessons:
+  - id: L-XXX-NNN               # OBLIGATORIO
+    titulo: "Qué se rompió, en una línea"
+    que_paso: "El síntoma, con la evidencia concreta (qué falló, cuándo)"
+    costo: "Cuántas veces, dónde se detectó (prod/CI/review), a quién afectó"
+    causa_raiz: "Por qué pasó — no el síntoma"
+    no_hagas: "La acción que lo provoca"
+    haz_en_cambio: "La alternativa correcta"
+    guarda:
+      estado: ninguna           # completa | parcial | ninguna
+      detalle: "Test, lint, hook o regla que hoy lo impide (archivo::símbolo). Si es parcial, qué hueco queda."
+    evidencia: [INC-0000]          # incidente de Jira, PR, ticket...
+    decision: DEC-XXX-NNN       # opcional — la decisión que lo cerró
+    reglas: [R-XXX-NNN]         # opcional
+    codigo:                     # opcional — hace que aparezca al tocar ese código
+      - "SP_NOMBRE"
+    terminos: [palabra, clave]  # opcional — para buscar por palabras que no están en rutas
+    status: active              # active | obsolete

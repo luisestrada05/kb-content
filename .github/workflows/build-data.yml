@@ -16,6 +16,7 @@ on:
       - 'rules/**'
       - 'vault/**'
       - 'standards/**'
+      - 'lessons/**'
       - 'package*.json'
       - '.github/workflows/build-data.yml'
 

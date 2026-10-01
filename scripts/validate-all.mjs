@@ -21,6 +21,8 @@ import {
   findDanglingDecisionRefs,
   loadStandards,
   validateStandards,
+  loadLessons,
+  validateLessons,
 } from '@kb/mcp-server/content'
 import { loadDecisions, DECISION_RULES } from '../plugin/decisions.mjs'
 
@@ -28,6 +30,7 @@ const RULES_DIR = 'rules'
 const DB = './tmp.db'
 const DECISIONS_DIR = 'vault/decisiones'
 const STANDARDS_DIR = 'standards'
+const LESSONS_DIR = 'lessons'
 
 function walk(dir) {
   const out = []
@@ -85,6 +88,16 @@ try {
 }
 const standardCount = standardFiles.reduce((n, f) => n + f.standards.length, 0)
 report(STANDARDS_DIR, standardCheck, standardCount)
+
+let lessonFiles = []
+let lessonCheck
+try {
+  lessonFiles = loadLessons(LESSONS_DIR)
+  lessonCheck = validateLessons(lessonFiles, { knownDecisions: new Set(decisions.keys()) })
+} catch (err) {
+  lessonCheck = { errors: [`YAML inválido en ${LESSONS_DIR}/: ${err.message}`], warnings: [] }
+}
+report(LESSONS_DIR, lessonCheck, lessonFiles.reduce((n, f) => n + f.lessons.length, 0))
 
 if (failed > 0) {
   process.stderr.write(`\n🚫 ${failed} file(s) failed validation\n`)

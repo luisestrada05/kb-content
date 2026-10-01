@@ -6,7 +6,7 @@
   "description": "Business rules YAML content. Validated in CI; published as a data image to GHCR for the @kb/mcp-server runtime.",
   "scripts": {
     "validate": "node scripts/validate-all.mjs",
-    "ingest:local": "kb-ingest init --db ./kb.db && kb-ingest ingest --db ./kb.db --plugin ./plugin/ingest.mjs --opt root=./rules --opt vault=./vault --opt standards=./standards && kb-ingest status --db ./kb.db"
+    "ingest:local": "kb-ingest init --db ./kb.db && kb-ingest ingest --db ./kb.db --plugin ./plugin/ingest.mjs --opt root=./rules --opt vault=./vault --opt standards=./standards --opt lessons=./lessons && kb-ingest status --db ./kb.db"
   },
   "dependencies": {
     "@kb/mcp-server": "git+https://github.com/luisestrada05/mcp-kb-server.git#main"

@@ -2,8 +2,8 @@
  * Ingestion plugin — kb-content
  *
  * Carga en la KB las reglas de negocio (rules/**.yaml), las notas de decisión
- * del vault (vault/decisiones/) y los estándares técnicos
- * (standards/<tecnologia>/*.yaml). La lógica de ingesta vive en el motor
+ * del vault (vault/decisiones/), los estándares técnicos
+ * (standards/<tecnologia>/*.yaml) y las lecciones (lessons/<area>/*.yaml). La lógica de ingesta vive en el motor
  * (`@kb/mcp-server/content`); aquí solo se decide de dónde se lee y cómo se
  * resume una decisión de este negocio.
  *
@@ -18,6 +18,8 @@ import {
   ingestDecisionNotes,
   ingestRuleFiles,
   ingestStandardFiles,
+  loadLessons,
+  ingestLessonFiles,
 } from '@kb/mcp-server/content'
 import { loadDecisions, decisionSummary } from './decisions.mjs'
 
@@ -40,10 +42,12 @@ export default {
     ingestDecisionNotes(ctx, decisions, { summarize: decisionSummary })
     const standards = ingestStandardFiles(ctx, loadStandards(dirOption(ctx, 'standards', 'standards')), opts)
     const rules = ingestRuleFiles(ctx, files, opts)
+    // Las lecciones al final: enlazan a reglas y decisiones que ya deben existir.
+    const lessons = ingestLessonFiles(ctx, loadLessons(dirOption(ctx, 'lessons', 'lessons')))
 
     ctx.log(
       `ingested ${rules.rules} rules, ${decisions.size} decisions, ${standards.standards} standards, ` +
-        `${rules.edges + standards.edges} edges from ${files.length} files`
+        `${lessons.lessons} lessons, ${rules.edges + standards.edges + lessons.edges} edges`
     )
   },
 }

@@ -32,12 +32,13 @@ COPY plugin/ ./plugin/
 COPY rules/ ./rules/
 COPY vault/ ./vault/
 COPY standards/ ./standards/
+COPY lessons/ ./lessons/
 
 # Init + ingest in one go. If a YAML is malformed or any reference is
 # unknown, ingest doesn't fail (kb-ingest is lenient about edge targets);
 # the strict gate is the validate workflow in CI.
 RUN npx kb-ingest init --db /work/kb.db && \
-    npx kb-ingest ingest --db /work/kb.db --plugin ./plugin/ingest.mjs --opt root=./rules --opt vault=./vault --opt standards=./standards
+    npx kb-ingest ingest --db /work/kb.db --plugin ./plugin/ingest.mjs --opt root=./rules --opt vault=./vault --opt standards=./standards --opt lessons=./lessons
 
 
 # ── Final stage: data-only image ────────────────────────────────────────────

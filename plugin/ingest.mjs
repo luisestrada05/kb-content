@@ -20,8 +20,8 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import yaml from 'js-yaml'
-import { loadDecisions } from './decisions.mjs'
-import { loadStandards } from './standards.mjs'
+import { loadStandards } from '@kb/mcp-server/content'
+import { loadDecisions, decisionSummary } from './decisions.mjs'
 
 // ── Config ──────────────────────────────────────────────────────────────────
 const DEFAULT_RULES_DIR = join(fileURLToPath(import.meta.url), '..', '..', 'rules')
@@ -51,10 +51,9 @@ function findYamlFiles(dir) {
 
 function buildBody(rule, decision) {
   const parts = [rule.summary || '']
-  if (decision?.sections.intencion) parts.push(`Por qué: ${decision.sections.intencion.text}`)
-  for (const item of decision?.sections.noSignifica?.items || []) {
-    parts.push(`No significa: ${item}`)
-  }
+  const why = decision ? decisionSummary(decision) : null
+  if (why?.intencion) parts.push(`Por qué: ${why.intencion}`)
+  for (const item of why?.noSignifica || []) parts.push(`No significa: ${item}`)
   if (rule.risk_note) parts.push(`Riesgo: ${rule.risk_note}`)
   if (rule.formal_rule?.action) parts.push(`Acción: ${rule.formal_rule.action}`)
   if (rule.formal_rule?.conditions) {
@@ -63,20 +62,8 @@ function buildBody(rule, decision) {
     }
   }
   if (rule.source_ref) parts.push(`Fuente: ${rule.source_ref}`)
-  if (decision) parts.push(`Decisión: ${decision.frontmatter.id} (${decision.frontmatter.status})`)
+  if (decision) parts.push(`Decisión: ${decision.id} (${decision.frontmatter.status})`)
   return parts.join('\n')
-}
-
-// Lo que viaja dentro de la regla: suficiente para no malinterpretarla sin
-// tener que ir a buscar la nota completa.
-function decisionSummary(d) {
-  return {
-    id: d.frontmatter.id,
-    status: d.frontmatter.status || null,
-    validadoCon: d.frontmatter.validado_con || null,
-    intencion: d.sections.intencion?.text || null,
-    noSignifica: d.sections.noSignifica?.items || [],
-  }
 }
 
 function ingestDecisions(ctx, decisions) {
@@ -97,7 +84,7 @@ function ingestDecisions(ctx, decisions) {
         origen: fm.origen || [],
         supersededBy: fm.superseded_by || null,
         sections: Object.fromEntries(
-          Object.entries(d.sections).map(([k, v]) => [k, v.items.length ? v.items : v.text])
+          Object.values(d.sections).map((v) => [v.heading, v.items.length ? v.items : v.text])
         ),
       },
       sourcePath: d.file,

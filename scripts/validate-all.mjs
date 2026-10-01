@@ -14,23 +14,15 @@
  * y que cada `decision:` citado por una regla o estándar exista.
  */
 import { spawnSync } from 'node:child_process'
-import { readdirSync, readFileSync, statSync, rmSync, existsSync } from 'node:fs'
-import { join, basename } from 'node:path'
-import yaml from 'js-yaml'
+import { readdirSync, statSync, rmSync, existsSync } from 'node:fs'
+import { join } from 'node:path'
 import {
-  loadDecisions,
-  DECISION_ID_PATTERN,
-  DECISION_STATUSES,
-  REQUIRED_SECTIONS,
-  PENDING_MARKER,
-} from '../plugin/decisions.mjs'
-import {
+  validateNotes,
+  findDanglingDecisionRefs,
   loadStandards,
-  STANDARD_ID_PATTERN,
-  STANDARD_LEVELS,
-  STANDARD_STATUSES,
-  STANDARD_REQUIRED,
-} from '../plugin/standards.mjs'
+  validateStandards,
+} from '@kb/mcp-server/content'
+import { loadDecisions, DECISION_RULES } from '../plugin/decisions.mjs'
 
 const RULES_DIR = 'rules'
 const DB = './tmp.db'
@@ -70,88 +62,29 @@ for (const f of files) {
   if (r.status !== 0) failed++
 }
 
-process.stderr.write(`\n── ${DECISIONS_DIR} ──\n`)
+function report(title, { errors, warnings }, count) {
+  process.stderr.write(`\n── ${title} ──\n`)
+  for (const w of warnings) process.stderr.write(`⚠️  ${w}\n`)
+  for (const e of errors) process.stderr.write(`❌ ${e}\n`)
+  process.stderr.write(`[validate-all] ${count} revisado(s)\n`)
+  if (errors.length > 0) failed++
+}
+
 const decisions = loadDecisions(DECISIONS_DIR)
-const decisionErrors = []
-const decisionWarnings = []
+const decisionCheck = validateNotes(decisions, DECISION_RULES)
+decisionCheck.errors.push(...findDanglingDecisionRefs(files, new Set(decisions.keys())))
+report(DECISIONS_DIR, decisionCheck, decisions.size)
 
-for (const d of decisions.values()) {
-  const fm = d.frontmatter
-  const label = `${d.file}`
-  if (!DECISION_ID_PATTERN.test(fm.id)) {
-    decisionErrors.push(`${label}: id "${fm.id}" no cumple formato DEC-XXX-NNN`)
-  }
-  if (basename(d.file, '.md') !== fm.id) {
-    decisionErrors.push(`${label}: el nombre del archivo debe ser ${fm.id}.md`)
-  }
-  if (!DECISION_STATUSES.has(fm.status)) {
-    decisionErrors.push(`${label}: status "${fm.status}" no es válido (${[...DECISION_STATUSES].join(', ')})`)
-  }
-  if (fm.status === 'superseded' && !decisions.has(fm.superseded_by)) {
-    decisionErrors.push(`${label}: status superseded requiere superseded_by apuntando a una decisión existente`)
-  }
-  for (const key of REQUIRED_SECTIONS) {
-    if (!d.sections[key]?.text) decisionErrors.push(`${label}: falta la sección obligatoria "${key}"`)
-  }
-  if (d.content.includes(PENDING_MARKER) || String(fm.validado_con).includes(PENDING_MARKER)) {
-    decisionWarnings.push(`${label}: tiene partes "${PENDING_MARKER}"`)
-  }
-}
-
-for (const f of files) {
-  const doc = yaml.load(readFileSync(f, 'utf-8'))
-  for (const rule of doc?.rules || []) {
-    if (rule.decision && !decisions.has(rule.decision)) {
-      decisionErrors.push(`${f}: ${rule.id} cita ${rule.decision} pero no existe en ${DECISIONS_DIR}/`)
-    }
-  }
-}
-
-for (const w of decisionWarnings) process.stderr.write(`⚠️  ${w}\n`)
-for (const e of decisionErrors) process.stderr.write(`❌ ${e}\n`)
-process.stderr.write(`[validate-all] ${decisions.size} decision(es) revisadas\n`)
-if (decisionErrors.length > 0) failed++
-
-process.stderr.write(`\n── ${STANDARDS_DIR} ──\n`)
-const standardErrors = []
-const seenStandardIds = new Set()
 let standardFiles = []
+let standardCheck
 try {
   standardFiles = loadStandards(STANDARDS_DIR)
+  standardCheck = validateStandards(standardFiles, { knownDecisions: new Set(decisions.keys()) })
 } catch (err) {
-  standardErrors.push(`YAML inválido en ${STANDARDS_DIR}/: ${err.message}`)
+  standardCheck = { errors: [`YAML inválido en ${STANDARDS_DIR}/: ${err.message}`], warnings: [] }
 }
-let standardCount = 0
-
-for (const { file, technology, standards } of standardFiles) {
-  if (!technology) standardErrors.push(`${file}: falta metadata.technology`)
-  if (standards.length === 0) standardErrors.push(`${file}: no tiene lista "standards"`)
-  for (const [i, std] of standards.entries()) {
-    const label = `${file}: ${std.id || `standards[${i}]`}`
-    standardCount++
-    for (const field of STANDARD_REQUIRED) {
-      if (!std[field]) standardErrors.push(`${label}: falta campo obligatorio "${field}"`)
-    }
-    if (std.id && !STANDARD_ID_PATTERN.test(std.id)) {
-      standardErrors.push(`${label}: ID no cumple formato STD-XXX-NNN`)
-    }
-    if (std.id && seenStandardIds.has(std.id)) standardErrors.push(`${label}: ID duplicado`)
-    seenStandardIds.add(std.id)
-    if (std.level && !STANDARD_LEVELS.has(std.level)) {
-      standardErrors.push(`${label}: level "${std.level}" no es válido (${[...STANDARD_LEVELS].join(', ')})`)
-    }
-    if (std.status && !STANDARD_STATUSES.has(std.status)) {
-      standardErrors.push(`${label}: status "${std.status}" no es válido (${[...STANDARD_STATUSES].join(', ')})`)
-    }
-    if (std.decision && !decisions.has(std.decision)) {
-      standardErrors.push(`${label}: cita ${std.decision} pero no existe en ${DECISIONS_DIR}/`)
-    }
-  }
-}
-
-for (const e of standardErrors) process.stderr.write(`❌ ${e}\n`)
-process.stderr.write(`[validate-all] ${standardCount} estándar(es) revisados\n`)
-if (standardErrors.length > 0) failed++
+const standardCount = standardFiles.reduce((n, f) => n + f.standards.length, 0)
+report(STANDARDS_DIR, standardCheck, standardCount)
 
 if (failed > 0) {
   process.stderr.write(`\n🚫 ${failed} file(s) failed validation\n`)

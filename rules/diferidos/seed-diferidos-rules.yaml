@@ -21,6 +21,7 @@ rules:
     owner: "equipo-diferidos"
     status: active
     risk_note: "Si se omite la validación previa, pueden persistirse diferidos con datos inconsistentes y romper el ciclo de cobro nocturno."
+    decision: DEC-DIF-001
     related_objects:
       tables: [DIF, LIN]
       sps: [DIVVAL, LINALT]

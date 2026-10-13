@@ -30,6 +30,9 @@ RUN npm install --no-audit --no-fund
 # Bring in the inputs only after deps are cached.
 COPY plugin/ ./plugin/
 COPY rules/ ./rules/
+COPY vault/ ./vault/
+COPY standards/ ./standards/
+COPY lessons/ ./lessons/
 
 # Init + ingest + embed in one go. If a YAML is malformed or any reference
 # is unknown, ingest doesn't fail (kb-ingest is lenient about edge targets);
@@ -49,7 +52,7 @@ COPY rules/ ./rules/
 RUN --mount=type=cache,target=/root/.cache/kb-models \
     export KB_EMBED_CACHE_DIR=/root/.cache/kb-models && \
     npx kb-ingest init --db /work/kb.db && \
-    npx kb-ingest ingest --db /work/kb.db --plugin ./plugin/ingest.mjs --opt root=./rules && \
+    npx kb-ingest ingest --db /work/kb.db --plugin ./plugin/ingest.mjs --opt root=./rules --opt vault=./vault --opt standards=./standards --opt lessons=./lessons && \
     npx kb-ingest embed --db /work/kb.db
 
 
@@ -62,6 +65,9 @@ RUN --mount=type=cache,target=/root/.cache/kb-models \
 FROM busybox:1.36-musl
 
 COPY --from=builder /work/kb.db /kb.db
+# The MCP server's instructions (KB_INSTRUCTIONS_FILE) ship with the content
+# they describe, so both land in the shared volume at the same release.
+COPY mcp-instructions.md /mcp-instructions.md
 
 # After copying, chown the file AND the directory to uid 1000 — that's
 # the `node` user in the downstream node:22-slim image. Without this the
@@ -71,4 +77,4 @@ COPY --from=builder /work/kb.db /kb.db
 # `node`; the value matches Docker Hub's node:22-slim convention.
 #
 # Override at runtime if needed: `command: ["sh","-c","cp /kb.db /other/path"]`
-CMD ["sh", "-c", "mkdir -p /out && cp /kb.db /out/kb.db && chown -R 1000:1000 /out && echo '[kb-content] kb.db published to /out (owner 1000:1000)'"]
+CMD ["sh", "-c", "mkdir -p /out && cp /kb.db /mcp-instructions.md /out/ && chown -R 1000:1000 /out && echo '[kb-content] kb.db + mcp-instructions.md published to /out (owner 1000:1000)'"]

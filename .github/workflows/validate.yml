@@ -7,6 +7,9 @@ on:
     branches: [main]
     paths:
       - 'rules/**'
+      - 'vault/**'
+      - 'standards/**'
+      - 'lessons/**'
       - 'plugin/**'
       - 'scripts/validate-all.mjs'
       - 'package*.json'

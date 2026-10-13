@@ -1,189 +1,53 @@
 /**
  * Ingestion plugin — kb-content
  *
- * Lee todos los YAML de reglas de negocio en un directorio (recursivo)
- * y los carga como entidades + aristas + terms en la KB.
- *
- * Adaptado del template publicado en
- *   github.com/luisestrada05/mcp-kb-server :: examples/yaml-rules/ingest.mjs
- *
- * Taxonomía:
- *   Entity types: rule | exception | gap | sla
- *   Relations:    overrides | uses_table | uses_sp
+ * Carga en la KB las reglas de negocio (rules/**.yaml), las notas de decisión
+ * del vault (vault/decisiones/), los estándares técnicos
+ * (standards/<tecnologia>/*.yaml) y las lecciones (lessons/<area>/*.yaml). La lógica de ingesta vive en el motor
+ * (`@kb/mcp-server/content`); aquí solo se decide de dónde se lee y cómo se
+ * resume una decisión de este negocio.
  *
  * Uso (local):
- *   kb-ingest ingest --db ./kb.db --plugin ./plugin/ingest.mjs --opt root=./rules
+ *   kb-ingest ingest --db ./kb.db --plugin ./plugin/ingest.mjs --opt root=./rules --opt vault=./vault --opt standards=./standards
  */
-import { readdirSync, readFileSync, statSync } from 'node:fs'
-import { join, basename } from 'node:path'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import yaml from 'js-yaml'
+import {
+  findYamlFiles,
+  loadStandards,
+  ingestDecisionNotes,
+  ingestRuleFiles,
+  ingestStandardFiles,
+  loadLessons,
+  ingestLessonFiles,
+} from '@kb/mcp-server/content'
+import { loadDecisions, decisionSummary } from './decisions.mjs'
 
-// ── Config ──────────────────────────────────────────────────────────────────
-const DEFAULT_RULES_DIR = join(fileURLToPath(import.meta.url), '..', '..', 'rules')
+const REPO_ROOT = join(fileURLToPath(import.meta.url), '..', '..')
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
-function findYamlFiles(dir) {
-  const results = []
-  let entries
-  try {
-    entries = readdirSync(dir)
-  } catch {
-    return results
-  }
-  for (const entry of entries) {
-    const full = join(dir, entry)
-    const stat = statSync(full)
-    if (stat.isDirectory()) {
-      results.push(...findYamlFiles(full))
-    } else if (entry.endsWith('.yaml') || entry.endsWith('.yml')) {
-      results.push(full)
-    }
-  }
-  return results
-}
-
-function buildBody(rule) {
-  const parts = [rule.summary || '']
-  if (rule.risk_note) parts.push(`Riesgo: ${rule.risk_note}`)
-  if (rule.formal_rule?.action) parts.push(`Acción: ${rule.formal_rule.action}`)
-  if (rule.formal_rule?.conditions) {
-    for (const c of rule.formal_rule.conditions) {
-      parts.push(`${c.field} ${c.op} ${JSON.stringify(c.value)}`)
-    }
-  }
-  if (rule.source_ref) parts.push(`Fuente: ${rule.source_ref}`)
-  return parts.join('\n')
-}
-
-function extractTerms(rule, domain) {
-  const terms = new Set()
-  terms.add(domain)
-  if (rule.subdomain) terms.add(rule.subdomain)
-  if (rule.id) terms.add(rule.id.toLowerCase())
-
-  const eventos = rule.applicability?.evento || []
-  for (const e of eventos) terms.add(e)
-
-  const tables = rule.related_objects?.tables || []
-  const sps = rule.related_objects?.sps || []
-  for (const t of tables) terms.add(t.toLowerCase())
-  for (const sp of sps) terms.add(sp.toLowerCase())
-
-  const keywords = (rule.summary || '')
-    .toLowerCase()
-    .split(/[\s—,;:()]+/)
-    .filter((w) => w.length > 4)
-  for (const kw of keywords) terms.add(kw)
-
-  return [...terms].filter(Boolean)
+function dirOption(ctx, key, fallback) {
+  return ctx.options?.[key] ? String(ctx.options[key]) : join(REPO_ROOT, fallback)
 }
 
 export default {
   name: 'kb-content',
-  description: 'Ingesta de reglas de negocio desde archivos YAML (requiere --opt root=<dir>)',
+  description: 'Reglas de negocio, decisiones y estándares (--opt root=, vault=, standards=)',
 
   async run(ctx) {
-    const rootDir = ctx.options?.root ? String(ctx.options.root) : DEFAULT_RULES_DIR
-    if (!ctx.options?.root) {
-      process.stderr.write('[kb-content] WARN: no --opt root=<dir> provided, using default\n')
-    }
-    const files = findYamlFiles(rootDir)
+    const files = findYamlFiles(dirOption(ctx, 'root', 'rules'))
+    const decisions = loadDecisions(join(dirOption(ctx, 'vault', 'vault'), 'decisiones'))
+    const opts = { decisions, summarize: decisionSummary }
 
-    let totalRules = 0
-    let totalEdges = 0
+    // Las decisiones primero: las aristas justified_by tienen llave foránea.
+    ingestDecisionNotes(ctx, decisions, { summarize: decisionSummary })
+    const standards = ingestStandardFiles(ctx, loadStandards(dirOption(ctx, 'standards', 'standards')), opts)
+    const rules = ingestRuleFiles(ctx, files, opts)
+    // Las lecciones al final: enlazan a reglas y decisiones que ya deben existir.
+    const lessons = ingestLessonFiles(ctx, loadLessons(dirOption(ctx, 'lessons', 'lessons')))
 
-    for (const file of files) {
-      const raw = readFileSync(file, 'utf-8')
-      let doc
-      try {
-        doc = yaml.load(raw)
-      } catch (err) {
-        process.stderr.write(`[kb-content] WARN: failed to parse ${file}: ${err.message}\n`)
-        continue
-      }
-
-      if (!doc || !doc.rules || !Array.isArray(doc.rules)) {
-        process.stderr.write(`[kb-content] SKIP: no rules array in ${file}\n`)
-        continue
-      }
-
-      const domain =
-        doc.metadata?.domain ||
-        basename(file, '.yaml').replace('seed-', '').replace('-rules', '')
-      const domainVersion = doc.metadata?.version || null
-      const domainCreatedAt = doc.metadata?.created_at || null
-
-      for (const rule of doc.rules) {
-        if (!rule.id) continue
-
-        const entityId = `${rule.type || 'rule'}:${rule.id}`
-        const body = buildBody(rule)
-
-        ctx.entities.upsert({
-          id: entityId,
-          type: rule.type || 'rule',
-          name: `[${rule.id}] ${rule.summary || 'Sin resumen'}`,
-          body,
-          metadata: {
-            domain,
-            domainVersion,
-            domainCreatedAt,
-            subdomain: rule.subdomain || null,
-            status: rule.status || 'active',
-            owner: rule.owner || null,
-            riskNote: rule.risk_note || null,
-            eventos: rule.applicability?.evento || [],
-            actors: rule.applicability?.actor || [],
-            relatedTables: rule.related_objects?.tables || [],
-            relatedSps: rule.related_objects?.sps || [],
-            sourceRef: rule.source_ref || null,
-            formalRule: rule.formal_rule || null,
-          },
-          sourcePath: file,
-        })
-        totalRules++
-
-        ctx.search.clearTerms(entityId)
-        const terms = extractTerms(rule, domain)
-        ctx.search.addTerms(entityId, terms)
-
-        if (rule.type === 'exception' && rule.formal_rule?.overrides) {
-          const targetId = `rule:${rule.formal_rule.overrides}`
-          ctx.edges.upsert({ src: entityId, dst: targetId, relation: 'overrides' })
-          totalEdges++
-        }
-
-        for (const table of rule.related_objects?.tables || []) {
-          const tableId = `table:${table}`
-          ctx.entities.upsert({
-            id: tableId,
-            type: 'table',
-            name: table,
-            body: `Tabla Sybase: ${table}`,
-            metadata: { domain },
-          })
-          ctx.edges.upsert({ src: entityId, dst: tableId, relation: 'uses_table' })
-          totalEdges++
-        }
-
-        for (const sp of rule.related_objects?.sps || []) {
-          const spId = `sp:${sp}`
-          ctx.entities.upsert({
-            id: spId,
-            type: 'stored_procedure',
-            name: sp,
-            body: `Stored Procedure Sybase: ${sp}`,
-            metadata: { domain },
-          })
-          ctx.edges.upsert({ src: entityId, dst: spId, relation: 'uses_sp' })
-          totalEdges++
-        }
-      }
-    }
-
-    process.stderr.write(
-      `[kb-content] ingested ${totalRules} rules, ${totalEdges} edges from ${files.length} files\n`
+    ctx.log(
+      `ingested ${rules.rules} rules, ${decisions.size} decisions, ${standards.standards} standards, ` +
+        `${lessons.lessons} lessons, ${rules.edges + standards.edges + lessons.edges} edges`
     )
   },
 }

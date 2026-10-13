@@ -97,6 +97,42 @@ rules:
 | `risk_note` presente | Toda regla debe documentar su contraparte (qué se rompe si no se cumple) |
 | `related_objects.tables` y `.sps` referencian objetos existentes en la KB | Si una tabla / SP es nuevo, el validador lo registra como `status: new` (auto-register en CI) |
 
+## Decisiones (el porqué de las reglas)
+
+La regla YAML dice **qué**; la nota de decisión dice **por qué** y, sobre todo, qué **no** significa. Viven en `vault/decisiones/` como markdown compatible con Obsidian (se puede editar sin la app).
+
+1. Copia [vault/_plantillas/decision.md](vault/_plantillas/decision.md) a `vault/decisiones/DEC-XXX-NNN.md`.
+2. Llena al menos `## Intención` y `## No significa` (obligatorias). Lo que no sepas márcalo con `⚠️ POR COMPLETAR`: el validador avisa pero no falla.
+3. En la regla agrega `decision: DEC-XXX-NNN`. Varias reglas pueden citar la misma decisión.
+
+Al ingestar, la intención y los "no significa" se embeben en la regla, así `kb_get rule:...` devuelve regla + porqué juntos, y se crea la arista `rule → justified_by → decision`.
+
+| `status` | Significado |
+|---|---|
+| `proposed` | Borrador, aún no validado con negocio |
+| `accepted` | Validado (`validado_con` lleno) |
+| `superseded` | Reemplazada; requiere `superseded_by` |
+
+## Estándares técnicos
+
+Separados de las reglas de negocio: una regla dice qué debe pasar en el dominio; un estándar dice cómo se escribe el código en una tecnología. Viven en `standards/<tecnologia>/<tema>.yaml` con la forma de [standards/_plantillas/standard.yaml](standards/_plantillas/standard.yaml) e IDs `STD-<TEC>-NNN`. Se ingestan como entidades `standard` con la tecnología y la categoría como términos (`kb_by_term sybase`).
+
+Para capturarlos, usa el prompt de Copilot [.github/prompts/capturar-estandares.prompt.md](.github/prompts/capturar-estandares.prompt.md): pregunta la tecnología, te pide las fuentes en tu máquina, propone la lista antes de escribir y corre la validación. Si nadie sabe el porqué de un estándar, `rationale: "heredado, sin documentar"`; nunca uno inventado.
+
+## Instrucciones para el agente (MCP)
+
+[`mcp-instructions.md`](mcp-instructions.md) le dice al agente **cuándo** consultar la KB: antes de tocar lógica de negocio, buscar por SP o tabla, respetar los "No significa" y avisar de lecciones sin guarda completa. El servidor lo manda como `instructions` del protocolo MCP (`KB_INSTRUCTIONS_FILE`), así que no hay que copiarlo a cada repo de código.
+
+La imagen de datos lo publica junto a `kb.db` en el volumen compartido. En el servicio `kb-mcp` del compose:
+
+```yaml
+environment:
+  KB_DB_PATH: /data/kb.db
+  KB_INSTRUCTIONS_FILE: /data/mcp-instructions.md
+```
+
+Si el cliente no muestra las instrucciones del servidor, pega el mismo texto en el `.github/copilot-instructions.md` del repo de código.
+
 ## Comandos locales
 
 ```bash

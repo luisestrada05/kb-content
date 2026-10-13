@@ -113,11 +113,23 @@ Al ingestar, la intención y los "no significa" se embeben en la regla, así `kb
 | `accepted` | Validado (`validado_con` lleno) |
 | `superseded` | Reemplazada; requiere `superseded_by` |
 
-## Estándares técnicos
+## Estándares y convenciones por capa
 
-Separados de las reglas de negocio: una regla dice qué debe pasar en el dominio; un estándar dice cómo se escribe el código en una tecnología. Viven en `standards/<tecnologia>/<tema>.yaml` con la forma de [standards/_plantillas/standard.yaml](standards/_plantillas/standard.yaml) e IDs `STD-<TEC>-NNN`. Se ingestan como entidades `standard` con la tecnología y la categoría como términos (`kb_by_term sybase`).
+Separados de las reglas de negocio: una regla dice qué debe pasar en el dominio; un estándar dice cómo se escribe el código. Viven por capa en `standards/<capa>/<tema>.yaml` (`bd`, `ms`, `web`), con la forma de [standards/_plantillas/standard.yaml](standards/_plantillas/standard.yaml) e IDs `STD-<TEC>-NNN`. Se ingestan como entidades `standard`, con la capa, la tecnología y la categoría como términos (`kb_by_term bd`).
 
-Para capturarlos, usa el prompt de Copilot [.github/prompts/capturar-estandares.prompt.md](.github/prompts/capturar-estandares.prompt.md): pregunta la tecnología, te pide las fuentes en tu máquina, propone la lista antes de escribir y corre la validación. Si nadie sabe el porqué de un estándar, `rationale: "heredado, sin documentar"`; nunca uno inventado.
+**Las carpetas arrancan vacías a propósito**: cada proyecto las puebla según lo necesite. Ver [standards/README.md](standards/README.md). Para capturarlas, usa el prompt de Copilot [.github/prompts/capturar-estandares.prompt.md](.github/prompts/capturar-estandares.prompt.md): pregunta la capa y la tecnología, te pide las fuentes en tu máquina, propone la lista antes de escribir y corre la validación. Si nadie sabe el porqué de un estándar, `rationale: "heredado, sin documentar"`; nunca uno inventado.
+
+## Catálogo de componentes
+
+[`catalogo/`](catalogo/README.md) dice dónde vive cada objeto que tocan las reglas: `sp:DIVVAL` → repo `bd-diferidos`, `sp/DIVVAL.sql`. Con eso el agente puede ir a leer el objeto y confirmar la regla contra el código. Las rutas son siempre relativas al repo; la ruta local de cada repo la guarda cada dev en `~/.kb/repos-locales.yaml`. Se puebla solo: cuando el agente necesita un objeto que no está mapeado, pregunta la ruta y propone agregarla.
+
+## Precedentes
+
+[`precedentes/`](precedentes/README.md) guarda cómo se resolvió algo antes, para seguirlo en vez de inventar otra forma. Apunta a objetos, tickets y PRs; no copia código. Su `traza` es `confirmada` (se leyó en los objetos de `verificado_en`) o `posible` (solo por texto; el agente la confirma antes de seguirla). Se pueblan hacia adelante: al cerrar cada tarea, el implementador propone el suyo.
+
+## Agentes de Copilot
+
+[`agentes/`](agentes/README.md) trae el `implementador` (busca precedentes, confirma reglas en el código, aplica los estándares de cada capa y etiqueta la fuente de todo lo que propone) y el `verificador` (solo lectura: dice si el código hace lo que dicen la regla o el precedente). Se instalan en los repos de código o a nivel usuario.
 
 ## Instrucciones para el agente (MCP)
 
@@ -208,8 +220,16 @@ kb-content/
 ├── rules/
 │   └── diferidos/
 │       └── seed-diferidos-rules.yaml      ← el equipo edita esto
+├── vault/decisiones/                       ← el porqué (DEC-…)
+├── standards/{bd,ms,web}/                  ← convenciones por capa
+├── lessons/                                ← lo que ya salió mal (L-…)
+├── catalogo/                               ← dónde vive cada objeto
+├── precedentes/                            ← cómo se resolvió antes (P-…)
+├── agentes/                                ← implementador + verificador (Copilot)
+├── mcp-instructions.md                     ← cuándo y cómo consultar la KB
 ├── plugin/
-│   └── ingest.mjs                          ← cómo se transforma YAML → KB
+│   ├── ingest.mjs                          ← cómo se transforma YAML → KB
+│   └── layers.mjs                          ← capas válidas: bd, ms, web
 ├── scripts/
 │   └── validate-all.mjs                    ← entry-point del npm run validate
 ├── Dockerfile                              ← data-only image

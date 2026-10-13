@@ -33,6 +33,8 @@ COPY rules/ ./rules/
 COPY vault/ ./vault/
 COPY standards/ ./standards/
 COPY lessons/ ./lessons/
+COPY catalogo/ ./catalogo/
+COPY precedentes/ ./precedentes/
 
 # Init + ingest + embed in one go. If a YAML is malformed or any reference
 # is unknown, ingest doesn't fail (kb-ingest is lenient about edge targets);
@@ -52,7 +54,8 @@ COPY lessons/ ./lessons/
 RUN --mount=type=cache,target=/root/.cache/kb-models \
     export KB_EMBED_CACHE_DIR=/root/.cache/kb-models && \
     npx kb-ingest init --db /work/kb.db && \
-    npx kb-ingest ingest --db /work/kb.db --plugin ./plugin/ingest.mjs --opt root=./rules --opt vault=./vault --opt standards=./standards --opt lessons=./lessons && \
+    npx kb-ingest ingest --db /work/kb.db --plugin ./plugin/ingest.mjs --opt root=./rules --opt vault=./vault --opt standards=./standards --opt lessons=./lessons \
+      --opt catalogo=./catalogo --opt precedentes=./precedentes && \
     npx kb-ingest embed --db /work/kb.db
 
 

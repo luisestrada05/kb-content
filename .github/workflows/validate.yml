@@ -10,6 +10,8 @@ on:
       - 'vault/**'
       - 'standards/**'
       - 'lessons/**'
+      - 'catalogo/**'
+      - 'precedentes/**'
       - 'plugin/**'
       - 'scripts/validate-all.mjs'
       - 'package*.json'

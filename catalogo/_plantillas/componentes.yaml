@@ -1,0 +1,9 @@
+# Plantilla — copia a catalogo/<capa>/<area>.yaml
+metadata:
+  layer: bd                     # OBLIGATORIO — bd | ms | web
+
+componentes:
+  - objeto: sp:DIVVAL           # OBLIGATORIO — ID de la KB: sp:, table:, code:, o un tipo propio (proceso:, servicio:)
+    repo: bd-diferidos          # OBLIGATORIO — id de catalogo/repos.yaml
+    ruta: sp/DIVVAL.sql         # OBLIGATORIO — relativa al repo, nunca una ruta de tu máquina
+    descripcion: "Valida el alta de un diferido"   # opcional

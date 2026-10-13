@@ -1,12 +1,13 @@
-# Plantilla — copia a standards/<tecnologia>/<tema>.yaml
+# Plantilla — copia a standards/<capa>/<tema>.yaml
 metadata:
-  technology: sybase          # OBLIGATORIO — una tecnología por carpeta (sybase, java, angular...)
+  layer: bd                   # OBLIGATORIO — bd | ms | web (plugin/layers.mjs)
+  technology: sybase          # OBLIGATORIO — la tecnología a la que aplica (sybase, java, angular...)
   version: "0.1.0"
   created_at: "YYYY-MM-DD"
 
 standards:
   - id: STD-SYB-001           # OBLIGATORIO — STD-<TEC>-NNN
-    category: error_handling  # naming | error_handling | security | performance | structure | testing | otro
+    category: naming          # naming | error_handling | security | performance | structure | testing | otro
     summary: "Qué exige el estándar, en una línea"
     level: must               # must (bloquea review) | should (recomendado) | may (opcional)
     applies_to:               # a qué aplica: tipos de objeto o globs

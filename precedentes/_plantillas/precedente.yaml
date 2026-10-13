@@ -1,0 +1,20 @@
+# Plantilla — copia a precedentes/<area>/<tema>.yaml
+# Un precedente = algo que YA se resolvió y se puede volver a seguir.
+metadata:
+  area: diferidos               # OBLIGATORIO — dominio o área
+
+precedentes:
+  - id: P-XXX-NNN               # OBLIGATORIO
+    titulo: "Qué se resolvió, en una línea"
+    que_se_pidio: "El requerimiento, como lo pidieron"
+    como_se_resolvio: "La solución en 2-3 líneas: qué se cambió y dónde. Sin código: el código está en verificado_en"
+    capas: [bd]                 # OBLIGATORIO — bd | ms | web
+    traza: confirmada           # OBLIGATORIO — confirmada (se leyó en el código) | posible (solo por texto)
+    verificado_en:              # obligatorio si traza es confirmada — IDs de la KB / del catálogo
+      - "sp:DIVVAL"
+    reglas: [R-XXX-NNN]         # opcional — reglas que aplica
+    decision: DEC-XXX-NNN       # opcional — si se tomó una decisión nueva
+    evidencia: [JIRA-0000]      # opcional — ticket, PR; en el legado muchas veces no hay
+    fecha: "YYYY-MM-DD"
+    terminos: [palabra, clave]  # opcional — palabras con las que alguien lo buscaría
+    status: active              # active | obsolete

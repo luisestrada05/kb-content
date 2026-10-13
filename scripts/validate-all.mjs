@@ -10,8 +10,9 @@
  * registered tables/SPs from one rule file count as "known" when the
  * next file references them — matches the production ingest behavior.
  *
- * Después valida las notas de decisión del vault, los estándares técnicos
- * y que cada `decision:` citado por una regla o estándar exista.
+ * Después valida las notas de decisión del vault, los estándares por capa,
+ * las lecciones, el catálogo de componentes, los precedentes y que cada
+ * `decision:` citado exista.
  */
 import { spawnSync } from 'node:child_process'
 import { readdirSync, statSync, rmSync, existsSync } from 'node:fs'
@@ -23,14 +24,21 @@ import {
   validateStandards,
   loadLessons,
   validateLessons,
+  loadCatalog,
+  validateCatalog,
+  loadPrecedents,
+  validatePrecedents,
 } from '@kb/mcp-server/content'
 import { loadDecisions, DECISION_RULES } from '../plugin/decisions.mjs'
+import { LAYERS } from '../plugin/layers.mjs'
 
 const RULES_DIR = 'rules'
 const DB = './tmp.db'
 const DECISIONS_DIR = 'vault/decisiones'
 const STANDARDS_DIR = 'standards'
 const LESSONS_DIR = 'lessons'
+const CATALOG_DIR = 'catalogo'
+const PRECEDENTS_DIR = 'precedentes'
 
 function walk(dir) {
   const out = []
@@ -82,7 +90,10 @@ let standardFiles = []
 let standardCheck
 try {
   standardFiles = loadStandards(STANDARDS_DIR)
-  standardCheck = validateStandards(standardFiles, { knownDecisions: new Set(decisions.keys()) })
+  standardCheck = validateStandards(standardFiles, {
+    knownDecisions: new Set(decisions.keys()),
+    layers: LAYERS,
+  })
 } catch (err) {
   standardCheck = { errors: [`YAML inválido en ${STANDARDS_DIR}/: ${err.message}`], warnings: [] }
 }
@@ -98,6 +109,29 @@ try {
   lessonCheck = { errors: [`YAML inválido en ${LESSONS_DIR}/: ${err.message}`], warnings: [] }
 }
 report(LESSONS_DIR, lessonCheck, lessonFiles.reduce((n, f) => n + f.lessons.length, 0))
+
+let catalogFiles = []
+let catalogCheck
+try {
+  catalogFiles = loadCatalog(CATALOG_DIR)
+  catalogCheck = validateCatalog(catalogFiles, { layers: LAYERS })
+} catch (err) {
+  catalogCheck = { errors: [`YAML inválido en ${CATALOG_DIR}/: ${err.message}`], warnings: [] }
+}
+report(CATALOG_DIR, catalogCheck, catalogFiles.reduce((n, f) => n + f.components.length, 0))
+
+let precedentFiles = []
+let precedentCheck
+try {
+  precedentFiles = loadPrecedents(PRECEDENTS_DIR)
+  precedentCheck = validatePrecedents(precedentFiles, {
+    knownDecisions: new Set(decisions.keys()),
+    layers: LAYERS,
+  })
+} catch (err) {
+  precedentCheck = { errors: [`YAML inválido en ${PRECEDENTS_DIR}/: ${err.message}`], warnings: [] }
+}
+report(PRECEDENTS_DIR, precedentCheck, precedentFiles.reduce((n, f) => n + f.precedents.length, 0))
 
 if (failed > 0) {
   process.stderr.write(`\n🚫 ${failed} file(s) failed validation\n`)

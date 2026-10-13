@@ -1,0 +1,6 @@
+# Plantilla — copia a catalogo/repos.yaml (uno solo para todo el sistema)
+repos:
+  - id: bd-diferidos            # OBLIGATORIO — minúsculas, sin espacios; es como lo citan los componentes
+    layer: bd                   # OBLIGATORIO — bd | ms | web
+    url: git@github.com:org/bd-diferidos.git   # OBLIGATORIO — para clonarlo si el dev no lo tiene
+    contiene: "SPs y DDL del módulo de diferidos"

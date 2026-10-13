@@ -17,6 +17,7 @@ abre PR ─────────► CI workflow "Validate rules"
 merge a main ────► CI workflow "Build data image"
                    │
                    ├─ kb-ingest init + ingest contra rules/
+                   ├─ kb-ingest embed (vectoriza todas las reglas)
                    ├─ docker build con el .db resultante
                    └─ docker push a ghcr.io/luisestrada05/kb-content:main
       │
@@ -141,14 +142,64 @@ npm install
 # Validar todos los YAMLs
 npm run validate
 
-# Ingestar localmente (genera ./kb.db y muestra stats)
+# Ingestar y vectorizar localmente (genera ./kb.db y muestra stats)
+# La primera vez descarga el modelo de embeddings (~130 MB).
 npm run ingest:local
 
 # Consultar la KB local (opcional)
 npx kb-ingest query term diferidos --db ./kb.db
-npx kb-ingest query find "tasa de interés" --db ./kb.db
+npm run find -- "¿se puede diferir una compra con la tarjeta bloqueada?"
+npm run find -- R-DIF-001 --mode fts
 npx kb-ingest query get rule:R-DIF-001 --db ./kb.db
 ```
+
+## Búsqueda semántica
+
+Cada build vectoriza **todas** las reglas: convierte `summary` + riesgo + acción + condiciones en un vector que representa su significado. Así `kb_find` encuentra una regla aunque la pregunta use otras palabras ("pagar en mensualidades" → "alta de diferido").
+
+- **No hay que hacer nada al agregar una regla.** El `.db` se reconstruye desde cero en cada merge, así que lo nuevo y lo existente se vectoriza siempre.
+- **El modelo es local** (`Xenova/multilingual-e5-small`): corre en el build, sin API keys ni costo por consulta. El server trae el mismo modelo para convertir las preguntas.
+- **Para comprobar la cobertura:** `npx kb-ingest status --db ./kb.db` muestra `embeddings.missing` (reglas sin vector) y `embeddings.stale` (vector desactualizado). Después de `npm run ingest:local` ambos deben ser `0`.
+
+### Si el build tarda demasiado
+
+Vectorizar cuesta ~12 ms por regla corta y ~150 ms por documento de ~400 palabras (4 vCPU, como un runner de GitHub Actions). Con las reglas de este repo son segundos, así que **no hace falta nada**. Con miles de documentos largos, 10,000 documentos serían ~25 min por build, y `build-data.yml` corta a los 15.
+
+La solución es no re-vectorizar lo que no cambió: tomar el `kb.db` de la imagen publicada anterior y pasarlo a `kb-ingest embed --reuse-from`. Solo se vectoriza lo nuevo o editado. Receta probada (dos builds seguidos: el segundo reutilizó 5 de 6 vectores y solo vectorizó la regla editada):
+
+**1. `Dockerfile`**: agregar una etapa `prev` antes del builder y cambiar el `RUN` de ingest:
+
+```dockerfile
+# Imagen de datos anterior, para reutilizar sus vectores. Por default una
+# imagen sin /kb.db: el primer build, o uno local, vectoriza todo.
+ARG PREV_DATA_IMAGE=busybox:1.36-musl
+FROM ${PREV_DATA_IMAGE} AS prev
+
+FROM node:22-slim AS builder
+# ... igual que hoy ...
+
+# Se copia a /tmp porque la DB está en WAL y SQLite no la abre desde un
+# montaje de solo lectura.
+RUN --mount=type=cache,target=/root/.cache/kb-models \
+    --mount=type=bind,from=prev,source=/,target=/prev \
+    export KB_EMBED_CACHE_DIR=/root/.cache/kb-models && \
+    REUSE="" && \
+    if [ -f /prev/kb.db ]; then cp /prev/kb.db /tmp/prev.db && REUSE="--reuse-from /tmp/prev.db"; fi && \
+    npx kb-ingest init --db /work/kb.db && \
+    npx kb-ingest ingest --db /work/kb.db --plugin ./plugin/ingest.mjs --opt root=./rules && \
+    npx kb-ingest embed --db /work/kb.db $REUSE
+```
+
+**2. `.github/workflows/build-data.yml`**: en el paso `Build and push`, pasar la imagen anterior solo cuando hay login a GHCR (no en PRs):
+
+```yaml
+          build-args: |
+            ${{ github.event_name != 'pull_request' && format('PREV_DATA_IMAGE=ghcr.io/{0}:main', github.repository) || '' }}
+```
+
+En el log del build aparece `reused N vector(s) from /tmp/prev.db` y `M to embed`. Si se cambia de modelo, no se reutiliza nada: los vectores de otro modelo no sirven.
+
+Detalles en el README de [`mcp-kb-server`](https://github.com/luisestrada05/mcp-kb-server#búsqueda-semántica-embeddings).
 
 ## Estructura del repo
 

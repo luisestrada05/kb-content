@@ -40,6 +40,12 @@ COPY rules/ ./rules/
 # .db is rebuilt from scratch on every build, so every rule — old and new —
 # is embedded each time; nothing needs a separate backfill. The model
 # (~130MB) is downloaded once into a BuildKit cache mount.
+#
+# Build time grows with the content: ~12ms per rule, ~150ms per 400-word
+# document on 4 vCPU. With a few rules that's seconds. If the content grows
+# to thousands of long documents and this step nears the workflow's timeout,
+# reuse the previous image's vectors with `embed --reuse-from` — tested
+# recipe in README, "Si el build tarda demasiado".
 RUN --mount=type=cache,target=/root/.cache/kb-models \
     export KB_EMBED_CACHE_DIR=/root/.cache/kb-models && \
     npx kb-ingest init --db /work/kb.db && \

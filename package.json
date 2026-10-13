@@ -7,7 +7,8 @@
   "scripts": {
     "validate": "node scripts/validate-all.mjs",
     "ingest:local": "kb-ingest init --db ./kb.db && kb-ingest ingest --db ./kb.db --plugin ./plugin/ingest.mjs --opt root=./rules --opt vault=./vault --opt standards=./standards --opt lessons=./lessons --opt catalogo=./catalogo --opt precedentes=./precedentes && kb-ingest embed --db ./kb.db && kb-ingest status --db ./kb.db",
-    "find": "kb-ingest query find --db ./kb.db"
+    "find": "kb-ingest query find --db ./kb.db",
+    "agentes:instalar": "node scripts/instalar-agentes.mjs"
   },
   "dependencies": {
     "@kb/mcp-server": "git+https://github.com/luisestrada05/mcp-kb-server.git#main"

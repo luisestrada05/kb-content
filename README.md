@@ -17,6 +17,7 @@ abre PR ─────────► CI workflow "Validate rules"
 merge a main ────► CI workflow "Build data image"
                    │
                    ├─ kb-ingest init + ingest contra rules/
+                   ├─ kb-ingest embed (vectoriza todas las reglas)
                    ├─ docker build con el .db resultante
                    └─ docker push a ghcr.io/luisestrada05/kb-content:main
       │
@@ -105,14 +106,26 @@ npm install
 # Validar todos los YAMLs
 npm run validate
 
-# Ingestar localmente (genera ./kb.db y muestra stats)
+# Ingestar y vectorizar localmente (genera ./kb.db y muestra stats)
+# La primera vez descarga el modelo de embeddings (~130 MB).
 npm run ingest:local
 
 # Consultar la KB local (opcional)
 npx kb-ingest query term diferidos --db ./kb.db
-npx kb-ingest query find "tasa de interés" --db ./kb.db
+npm run find -- "¿se puede diferir una compra con la tarjeta bloqueada?"
+npm run find -- R-DIF-001 --mode fts
 npx kb-ingest query get rule:R-DIF-001 --db ./kb.db
 ```
+
+## Búsqueda semántica
+
+Cada build vectoriza **todas** las reglas: convierte `summary` + riesgo + acción + condiciones en un vector que representa su significado. Así `kb_find` encuentra una regla aunque la pregunta use otras palabras ("pagar en mensualidades" → "alta de diferido").
+
+- **No hay que hacer nada al agregar una regla.** El `.db` se reconstruye desde cero en cada merge, así que lo nuevo y lo existente se vectoriza siempre.
+- **El modelo es local** (`Xenova/multilingual-e5-small`): corre en el build, sin API keys ni costo por consulta. El server trae el mismo modelo para convertir las preguntas.
+- **Para comprobar la cobertura:** `npx kb-ingest status --db ./kb.db` muestra `embeddings.missing` (reglas sin vector) y `embeddings.stale` (vector desactualizado). Después de `npm run ingest:local` ambos deben ser `0`.
+
+Detalles en el README de [`mcp-kb-server`](https://github.com/luisestrada05/mcp-kb-server#búsqueda-semántica-embeddings).
 
 ## Estructura del repo
 

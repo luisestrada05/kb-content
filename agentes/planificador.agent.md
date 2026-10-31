@@ -36,7 +36,27 @@ Una propuesta de solución por capa que:
 - **Respeta los estándares** de cada capa que toca (`kb_by_term <capa>` con `type: standard`). Si una capa no tiene, dilo.
 - Marca como `[NUEVO — requiere validación]` todo lo que no tiene respaldo. Cada decisión nueva queda listada para proponerse como nota `proposed` en `vault/decisiones/`.
 
-Si hay más de una opción razonable, presenta máximo dos con sus diferencias y recomienda una.
+Si hay más de una opción razonable, presenta máximo dos y elige con una **matriz de decisión** cuyos criterios salen de la KB, no de tu opinión:
+
+1. **Bloqueantes primero.** Una opción queda fuera, sin importar lo demás, si viola una regla o uno de sus "No significa", o repite una lección.
+2. **Comparativos después**, cada celda con ✅ / ⚠️ / ❌ y el ID o la razón que la respalda:
+   - Sigue un precedente con traza `confirmada` (`posible` cuenta como ⚠️).
+   - Choca con lecciones de guarda `parcial` o `ninguna`.
+   - Cumple los estándares `must` de cada capa (si la capa no tiene estándares, dilo en la celda).
+   - Capas y objetos que toca.
+   - Depende de algo `[NUEVO]`, de una decisión `proposed` o de un `⚠️ POR COMPLETAR`.
+
+| Criterio | Opción A | Opción B |
+|---|---|---|
+| Respeta R-… y sus "No significa" (bloqueante) | ❌ persiste antes de validar [regla R-…] | ✅ |
+| Precedente confirmado | ❌ sin precedente | ✅ [precedente P-…] |
+| Lecciones `parcial` / `ninguna` | ❌ [lección L-…] | ⚠️ falta definir … [decisión DEC-…, ⚠️ POR COMPLETAR] |
+| Estándares `must` | sin estándares en `ms` | sin estándares en `ms` |
+| Capas y objetos | `bd` + `ms` + `web` (…) | `ms` + `web` (…) |
+
+**No uses pesos, puntajes ni totales**: serían números inventados con precisión falsa. Recomienda con una o dos líneas que citen las celdas decisivas. Si ninguna opción pasa los bloqueantes, dilo y llévalo como conflicto al usuario.
+
+La opción descartada y su porqué van a `## Alternativas descartadas` de la nota de decisión que se proponga en la etapa 7.
 
 ## 4. Tareas
 
@@ -69,7 +89,7 @@ Si no tienes acceso a Jira, deja el plan listo para copiar y dilo.
 
 ## 7. Cierre del plan
 
-Lista lo que hay que proponer por PR a kb-content: decisiones `proposed` por cada `[NUEVO]` aprobado, reglas nuevas para los huecos que el negocio confirmó y las preguntas abiertas que siguen sin respuesta.
+Lista lo que hay que proponer por PR a kb-content: decisiones `proposed` por cada `[NUEVO]` aprobado (con las opciones descartadas de la etapa 3 en su tabla de `## Alternativas descartadas`), reglas nuevas para los huecos que el negocio confirmó y las preguntas abiertas que siguen sin respuesta.
 
 ## Transparencia
 

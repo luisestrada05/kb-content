@@ -27,4 +27,10 @@ Interpretaciones equivocadas que alguien ya tuvo (o que es fácil tener). Cita e
 
 ## Alternativas descartadas
 
-- Opción → por qué no
+Lo que se evaluó y no se eligió. Es lo primero que se pierde con los años: sin esto, alguien vuelve a proponerlo sin saber que ya se descartó.
+
+| Opción | A favor | En contra | Por qué se descartó |
+|---|---|---|---|
+| Opción | Qué ganaba | Qué costaba o qué rompía | Cita lo que la descartó: regla, lección, decisión de negocio |
+
+Si no se sabe qué se evaluó, `⚠️ POR COMPLETAR`; no reconstruyas alternativas que nadie documentó.

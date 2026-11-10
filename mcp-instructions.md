@@ -4,12 +4,12 @@ Cuándo consultarla — ANTES de diseñar, implementar, revisar o analizar un in
 - Por el objeto que vas a tocar: `kb_by_term` con el nombre del SP o de la tabla, en minúsculas (p. ej. `divval`, `linalt`, `dif`). Devuelve las reglas que lo usan, las lecciones de lo que ya se rompió ahí y los precedentes que lo tocaron.
 - Por el evento o el tema: `kb_by_term` con la palabra clave en minúsculas y SIN acentos (`alta_diferido`, `diferidos`).
 - Por texto libre: `kb_find "<texto>"` (sin guiones en la consulta: hoy rompen la búsqueda). Busca por significado, no solo por palabras.
-- Qué depende de algo: `kb_related <id>` (p. ej. `kb_related sp:DIVVAL`, `kb_related decision:DEC-DIF-001`).
+- Antes de actuar sobre algo: `kb_context <id>` (p. ej. `kb_context sp:DIVVAL`, `kb_context decision:DEC-DIF-001`). En una sola llamada trae el body completo, lo que apunta y lo que lo apunta (excepciones, decisiones, lo que depende de él). Prefiérelo a `kb_get` + `kb_related`.
 - Dónde vive un objeto: `kb_get sp:DIVVAL` trae `Ubicación: <repo>/<ruta>` si está en el catálogo.
 - Estándares: `kb_by_term <capa>` con `type: standard` (`bd`, `ms`, `web`) por cada capa que toque la tarea. Si una capa no tiene ninguno, dilo y pide al usuario las convenciones de su equipo; no apliques convenciones genéricas como si fueran las de la casa.
 
 Cómo usar lo que devuelve:
-- `kb_get` de la regla trae en su body el `Por qué` (si se conoce) y los `No significa`. Los "No significa" son malas lecturas que ya ocurrieron o son fáciles de cometer: respétalos y cítalos por ID de regla.
+- `kb_context` (o `kb_get`) de la regla trae en su body el `Por qué` (si se conoce) y los `No significa`. Los "No significa" son malas lecturas que ya ocurrieron o son fáciles de cometer: respétalos y cítalos por ID de regla.
 - Una decisión con status `proposed` no está validada con negocio: úsala, pero dilo. Un `⚠️ POR COMPLETAR` es un hueco conocido, no un dato.
 - Si la regla contradice lo que hace el SP, en un sistema legado el comportamiento del SP es la regla de facto: dilo explícitamente con ambas citas y no lo resuelvas en silencio.
 - Una lección (`lesson:L-…`) es un error que ya ocurrió: aplica su "Haz en cambio". Si su guarda es `parcial` o `ninguna`, nada automático te detendrá: avísalo explícitamente al usuario antes de seguir.

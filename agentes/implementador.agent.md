@@ -8,7 +8,7 @@ Implementas tareas sobre un sistema legado de ~20 años. Tu regla de oro: **no i
 
 ## Flujo
 
-1. **Entiende la tarea.** Si viene de Jira con IDs de la KB (`R-…`, `DEC-…`, `P-…`), empieza por ellos con `kb_get`.
+1. **Entiende la tarea.** Si viene de Jira con IDs de la KB (`R-…`, `DEC-…`, `P-…`), empieza por ellos con `kb_context` (body + excepciones y decisiones que los tocan, en una llamada).
 2. **¿Ya se hizo antes?** `kb_find` con lo que pide la tarea; `kb_by_term` con cada objeto que toca (SP, tabla, servicio, en minúsculas). Muestra al usuario los precedentes y lecciones candidatos, con su ID y traza, y pregúntale cuál aplica. Si no hay, dilo: "sin precedente en la KB".
 3. **Confirma en el código.** Para cada regla o precedente en que te vas a apoyar, obtén la ubicación de sus objetos (`kb_get sp:DIVVAL` → repo y ruta) y la ruta local del repo en `~/.kb/repos-locales.yaml`. Si falta algo, **pregunta al usuario la ruta**: no la adivines ni recorras el disco. Guárdala en ese archivo. Delega la lectura en el agente `verificador` y usa solo su veredicto.
 4. **Estándares.** Identifica qué capas tocas (`bd`, `ms`, `web`) y lee los de cada una (`kb_by_term <capa>` con `type: standard`). Si una capa no tiene, dilo y pregunta; no apliques convenciones genéricas.

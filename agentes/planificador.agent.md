@@ -19,7 +19,7 @@ Lee el requerimiento (texto, PRD o épica de Jira). Escribe:
 
 ## 2. Impacto contra la KB 🧑
 
-Para cada entidad y evento: `kb_find` con el texto y `kb_by_term` con las palabras clave y los objetos (SP, tabla, servicio). Sigue con `kb_related` lo que encuentres. Reporta:
+Para cada entidad y evento: `kb_find` con el texto y `kb_by_term` con las palabras clave y los objetos (SP, tabla, servicio). Sigue con `kb_context` lo que encuentres: trae el body y las relaciones en ambos sentidos en una sola llamada. Reporta:
 - **Reglas, excepciones y decisiones** que toca, con su ID y sus "No significa".
 - **Objetos** (SPs, tablas, servicios, pantallas) y su capa (`bd`, `ms`, `web`), con su ubicación si está en el catálogo.
 - **Precedentes**: si algo parecido ya se hizo, con su traza (`confirmada` / `posible`).
